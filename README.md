@@ -1,143 +1,143 @@
-# Tech Waves and GDP Growth Analysis
+# Tech Waves Economic Impact Analysis
 
-This repository contains a comprehensive analysis of how three major technology waves have impacted North American GDP growth from 1990 to 2024, with forecasts extending to 2035. The analysis focuses on:
+This repository contains a comprehensive analysis of how three major technology waves have impacted global economic growth from 1990 to 2024, with forecasts extending to 2035. The analysis is part of the "Emerging Paradigms in Computing Technologies" course at the University of Windsor.
+
+## Project Overview
+
+This project implements advanced regression analysis to quantify the economic impact of three major technology waves:
 
 - **Tech 1.0 (1995-2002)**: The dot-com/Internet boom
 - **Tech 2.0 (2003-2012)**: The social media & mobile revolution
 - **Tech 3.0 (2013-present)**: The ongoing AI & automation era
 
-## Project Overview
-
-This project implements a causal regression analysis to quantify the economic impact of each technology wave. The models estimate how much each wave contributed to GDP growth, validating results against historical data and providing forecasts for Tech 3.0's potential future impact.
+The models estimate how each wave contributed to GDP growth, analyze industry restructuring, and provide forecasts for Tech 3.0's potential future impact.
 
 ## Key Visualizations
 
-### Historical GDP Growth & Tech Waves
+### AI Metrics and GDP Growth
 
-![Tech Waves GDP Data](results/tech_waves_gdp_data.png)
+![AI Metrics and GDP Growth](results/ai_impact_analysis_improved.png)
 
-This visualization shows North America's GDP growth from 1990-2024, with the three tech wave periods highlighted. The top panel displays GDP growth fluctuations, including the dot-com boom of the late 1990s, the 2008-09 recession, and the COVID-19 shock. The bottom panel tracks technology adoption indicators (internet usage, mobile subscriptions, and robot density) that serve as proxies for each tech wave.
+This visualization shows the relationship between GDP growth and AI metrics (patents and investment) from 1990-2024. Despite the dramatic increase in AI patents and investments (red and green lines), their correlation with GDP growth appears weak in the short term, with lagged correlations of -0.10 and -0.13.
 
-### Tech Wave Effects on GDP Growth
+### Difference-in-Differences: Technology Wave Effects
 
-![Tech Wave Effects](results/tech_wave_effects.png)
+![Difference-in-Differences Analysis](results/diff_in_diff_analysis.png)
 
-This chart displays the estimated GDP growth impact of each technology wave from our regression model. Tech 1.0 (1995-2002) shows a substantial positive effect of approximately +1.06 percentage points on annual growth. In contrast, Tech 2.0 and Tech 3.0 show negligible or slightly negative effects, indicating they haven't yet meaningfully accelerated GDP growth beyond baseline.
+This chart compares North America's GDP growth with OECD Europe as a control region, showing how technology adoption differentials impacted economic performance across tech waves. The counterfactual line represents what Europe's growth might have been with North America's level of tech adoption.
 
-### Future GDP Growth Scenarios (Tech 3.0 Impact)
+### Economic Impact of Technology Waves
 
-![GDP Growth Forecast](results/gdp_growth_forecast.png)
+![Economic Impact of Technology Waves](results/economic_impact_summary.png)
 
-This forecast visualization shows multiple scenarios for how Tech 3.0 (AI & Automation) might impact North American GDP growth through 2035:
+This comprehensive visualization shows both historical GDP growth and projections through 2035 across different tech waves. The top panel displays GDP growth with key tech innovation markers, while the bottom panel shows how industry composition (Manufacturing, Finance, IT) evolved during these periods.
 
-- **Baseline**: GDP growth continues at ~2% without significant AI impact
-- **Conservative Scenario**: Modest AI adoption adds ~0.4pp to annual growth
-- **Moderate Scenario**: More substantial AI integration adds ~1.25pp to growth
-- **Optimistic Scenario**: Transformative AI adoption adds ~3pp to annual growth
+### GDP Growth Forecast Scenarios
 
-The forecasts suggest that if AI technologies follow adoption and productivity patterns similar to previous successful tech waves, they could significantly boost economic growth in the coming decade.
+![GDP Growth Forecast Scenarios](results/gdp_growth_forecast_improved.png)
 
-### Difference-in-Differences Analysis
+This forecast visualization shows three scenarios for how Tech 3.0 (AI & Automation) might impact GDP growth through 2035:
+- **Conservative Scenario**: Modest AI adoption adds +0.2pp to annual growth (resulting in +1.7% GDP by 2035)
+- **Moderate Scenario**: Medium AI integration adds +0.6pp to growth (resulting in +6.9% GDP by 2035)
+- **Optimistic Scenario**: Transformative AI adoption adds +1.9pp to growth (resulting in +20.5% GDP by 2035)
 
-![Diff-in-Diff Analysis](results/diff_in_diff_analysis.png)
+### Industry Restructuring During Technology Waves
 
-This chart compares North America's GDP growth with a control region that experienced less technological intensity. The gap between the lines during Tech 1.0 demonstrates the region-specific growth advantage from the dot-com boom, supporting a causal interpretation of technology's impact.
+![Industry Restructuring](results/industry_restructuring_improved.png)
+
+This visualization shows how industry composition changed over the three tech waves. The IT sector has grown substantially (+12.6pp), Finance has seen moderate growth (+3.4pp), while Manufacturing has declined (-6.6pp).
+
+### Technology Wave Indices
+
+![Technology Wave Indices](results/tech_indices.png)
+
+This chart tracks the normalized progression of each technology wave using composite indices built from key metrics. The Tech 3.0 index (blue) shows the rapid acceleration of AI/automation technologies in recent years.
+
+### Technology Resilience Index
+
+![Technology Resilience Index](results/tech_resilience_index.png)
+
+This visualization shows how technological resilience has increased over time, with accelerated growth during the Tech 3.0 period. The index appears to correlate with improved recovery from economic shocks like the Financial Crisis and COVID-19 pandemic.
 
 ## Repository Structure
 
 ```
-Emerging/
+Project/
 │
-├── tech_waves_regression.py     # Main analysis script
-├── requirements.txt             # Required Python packages
-├── README.md                    # This file
+├── tech_waves_regression.py   # Main comprehensive analysis script
+├── README.md                  # This file
 │
-└── results/                     # Generated visualization outputs
-    ├── tech_waves_gdp_data.png            # Historical GDP & tech adoption data
-    ├── regression_diagnostics.png         # Residual analysis plots
-    ├── tech_wave_effects.png              # Coefficient estimates by tech wave
-    ├── tech_proxy_effects.png             # Effects of individual tech measures
-    ├── diff_in_diff_analysis.png          # Difference-in-differences visualization
-    └── gdp_growth_forecast.png            # Future scenarios for Tech 3.0 impact
+└── results/                   # Generated visualization outputs
+    ├── ai_impact_analysis_improved.png
+    ├── diff_in_diff_analysis.png
+    ├── economic_impact_summary.png
+    ├── gdp_growth_forecast_improved.png
+    ├── industry_restructuring_improved.png
+    ├── tech_indices.png
+    └── tech_resilience_index.png
 ```
 
 ## Key Findings
 
-1. **Tech 1.0 (Dot-Com Era)** showed a significant positive impact on GDP growth, adding approximately +1.06 percentage points to annual growth compared to the baseline.
+1. **Tech 1.0 (Dot-Com Era)** showed a significant positive impact on GDP growth compared to control regions, particularly in the years 1997-2000 before the dot-com crash.
 
-2. **Tech 2.0 (Mobile/Social)** showed no statistically significant growth effect (-0.42 percentage points, not significant), suggesting that despite revolutionary changes in communication, this wave did not translate into accelerated GDP growth.
+2. **Tech 2.0 (Mobile/Social)** exhibited mixed effects, with potential growth benefits partially offset by the 2008-2009 global financial crisis.
 
-3. **Tech 3.0 (AI/Automation)** has not yet demonstrated a measurable impact on GDP growth (-0.05 percentage points, not significant). However, forecasts suggest potential for meaningful impact as AI adoption intensifies.
+3. **Tech 3.0 (AI/Automation)** is showing emerging impacts that have not yet fully materialized in GDP statistics, with significant industry restructuring already occurring.
 
-4. **Internet Adoption** was the strongest causal factor identified, with each percentage point increase in internet penetration associated with a +0.39 percentage point increase in GDP growth (statistically significant).
+4. **Industry Restructuring** has been substantial:
+   - IT sector has grown by approximately 12.6 percentage points
+   - Financial services sector has grown by 3.4 percentage points
+   - Manufacturing sector has declined by 6.6 percentage points
 
-5. Forward-looking scenarios project Tech 3.0 could potentially add between +0.40 and +3.00 percentage points to annual growth by 2035, depending on adoption rates and productivity translation.
+5. **Technology Resilience** has increased over time, potentially helping economies recover faster from shocks like the COVID-19 pandemic.
 
-## Getting Started
-
-### Prerequisites
-
-- Python 3.8 or higher
-- Required packages listed in `requirements.txt`
-
-### Installation
-
-1. Clone this repository:
-   ```
-   git clone https://github.com/rajpatel8/Emerging.git
-   cd Emerging
-   ```
-
-2. Create a virtual environment (optional but recommended):
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-### Running the Analysis
-
-Execute the main script:
-```
-python tech_waves_regression.py
-```
-
-This will generate all visualizations in the `results/` directory and output statistical findings to the console.
+6. **Future Projections** suggest Tech 3.0 could add between +0.2 and +1.9 percentage points to annual GDP growth, potentially resulting in GDP levels 1.7% to 20.5% higher by 2035 compared to baseline.
 
 ## Methodology
 
-The analysis employs several methodological approaches:
+The analysis employs several advanced methodological approaches:
 
-1. **Period-Dummy Regression**: Uses dummy variables to capture structural shifts in GDP growth during each tech wave period.
+1. **Time Series Regression**: Analyzes the impact of technology adoption metrics on GDP growth over time.
 
-2. **Continuous Proxy Regression**: Uses year-over-year changes in technology adoption metrics (internet usage, mobile subscriptions, robot density) as explanatory variables.
+2. **Difference-in-Differences Analysis**: Compares regions with different levels of technology adoption to isolate causal effects.
 
-3. **Structural Break Analysis**: Tests for statistically significant breaks in GDP growth trend at the onset of each tech wave.
+3. **Technology Indices Development**: Creates normalized indices for each tech wave using key adoption metrics.
 
-4. **Difference-in-Differences Analysis**: Compares North America's growth performance during tech boom periods against control regions with less technological intensity.
+4. **Industry Restructuring Analysis**: Examines how technology waves have reshaped the composition of the economy.
 
-5. **Scenario Forecasting**: Projects potential future growth impacts based on different assumptions about AI adoption and productivity translation.
+5. **Resilience Index Modeling**: Measures how technology adoption affects economic resilience during shocks.
+
+6. **Scenario-Based Forecasting**: Projects potential future growth impacts based on different AI adoption trajectories.
 
 ## Data Sources
 
 The analysis uses data from various sources including:
-- GDP growth data from World Bank/OECD
-- Internet adoption rates from ITU
+- GDP growth data from World Bank/IMF
+- Internet adoption rates from World Bank/ITU
 - Mobile subscription data from telecommunications reports
 - Robot density data from International Federation of Robotics (IFR)
+- AI patents and investment data from research databases
+- Industry GDP contribution from national accounts data
+
+## Requirements
+
+### Prerequisites
+
+- Python 3.8 or higher
+- Required packages: pandas, numpy, matplotlib, seaborn, statsmodels, sklearn, scipy
+
+### Running the Analysis
+
+1. Clone this repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run the main analysis script: `python tech_waves_regression.py`
+
+## Course Context
+
+This project was completed as part of the "Emerging Paradigms in Computing Technologies" course at the University of Windsor, taught by Dr. Shafaq Khan. It explores the economic impact analysis and industry restructuring caused by major technological waves, with a focus on the emerging Tech 3.0 (AI-driven) era.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is educational in nature and provided for academic purposes.
 
-## Acknowledgments
-
-This analysis builds on economic research by various institutions and researchers who have studied the productivity and growth impacts of technological innovation waves.
-
-## Contact
-
-For questions or collaboration, please open an issue on this repository.
