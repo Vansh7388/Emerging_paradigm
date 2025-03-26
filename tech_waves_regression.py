@@ -16,6 +16,15 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
 
+# Make sure results directory exists
+import os
+results_dir = 'results'
+if not os.path.exists(results_dir):
+    os.makedirs(results_dir)
+    print(f"Created results directory: {results_dir}")
+else:
+    print(f"Results directory already exists: {results_dir}")
+
 # Set styling for plots
 plt.style.use('seaborn-v0_8-whitegrid')
 sns.set_palette("deep")
@@ -267,7 +276,7 @@ plt.ylabel('Index Value (0-1 scale)', fontsize=14)
 plt.xlabel('Year', fontsize=14)
 plt.legend(loc='best', fontsize=12)
 plt.tight_layout()
-plt.savefig('tech_indices.png', dpi=300)
+plt.savefig(os.path.join(results_dir, 'tech_indices.png'), dpi=300)
 
 #########################################
 # 3. IMPROVED REGRESSION ANALYSIS
@@ -341,7 +350,7 @@ for industry in industries:
     print("-" * 50)
     print(results_ind.summary().tables[1])
 
-# Industry restructuring visualization
+# Industry restructuring visualization with improved annotations
 plt.figure(figsize=(14, 8))
 plt.stackplot(data['Year'], 
              data['Manufacturing_GDP_Share'],
@@ -355,13 +364,32 @@ plt.plot(data['Year'], data['Composite_Tech_Index'] * 20, # Scale for visibility
          color='black', linestyle='--', linewidth=2.5, 
          label='Composite Tech Index (scaled)')
 
+# Add tech wave periods with clear labels
 plt.axvspan(1995, 2002, alpha=0.1, color='green')
 plt.axvspan(2003, 2012, alpha=0.1, color='orange')
 plt.axvspan(2013, 2024, alpha=0.1, color='blue')
 
-plt.annotate('Tech 1.0', xy=(1998, 22), fontsize=12, ha='center')
-plt.annotate('Tech 2.0', xy=(2007, 22), fontsize=12, ha='center')
-plt.annotate('Tech 3.0', xy=(2018, 22), fontsize=12, ha='center')
+plt.annotate('Tech 1.0', xy=(1998, 22), fontsize=12, ha='center', fontweight='bold',
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="green", alpha=0.8))
+plt.annotate('Tech 2.0', xy=(2007, 22), fontsize=12, ha='center', fontweight='bold',
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="orange", alpha=0.8))
+plt.annotate('Tech 3.0', xy=(2018, 22), fontsize=12, ha='center', fontweight='bold',
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="blue", alpha=0.8))
+
+# Add annotations for sector growth rates
+manuf_change = data['Manufacturing_GDP_Share'].iloc[-1] - data['Manufacturing_GDP_Share'].iloc[0]
+it_change = data['IT_GDP_Share'].iloc[-1] - data['IT_GDP_Share'].iloc[0]
+finance_change = data['Finance_GDP_Share'].iloc[-1] - data['Finance_GDP_Share'].iloc[0]
+
+plt.annotate(f"{manuf_change:.1f}pp", xy=(2023, data['Manufacturing_GDP_Share'].iloc[-1]/2), 
+             xytext=(2023, data['Manufacturing_GDP_Share'].iloc[-1]/2),
+             color='navy', fontweight='bold', ha='center')
+plt.annotate(f"+{it_change:.1f}pp", xy=(2023, data['Manufacturing_GDP_Share'].iloc[-1] + data['Finance_GDP_Share'].iloc[-1] + data['IT_GDP_Share'].iloc[-1]/2), 
+             xytext=(2023, data['Manufacturing_GDP_Share'].iloc[-1] + data['Finance_GDP_Share'].iloc[-1] + data['IT_GDP_Share'].iloc[-1]/2),
+             color='darkred', fontweight='bold', ha='center')
+plt.annotate(f"+{finance_change:.1f}pp", xy=(2023, data['Manufacturing_GDP_Share'].iloc[-1] + data['Finance_GDP_Share'].iloc[-1]/2), 
+             xytext=(2023, data['Manufacturing_GDP_Share'].iloc[-1] + data['Finance_GDP_Share'].iloc[-1]/2),
+             color='darkgreen', fontweight='bold', ha='center')
 
 plt.title('Industry Restructuring During Technology Waves', fontsize=16)
 plt.ylabel('Share of GDP (%)', fontsize=14)
@@ -369,7 +397,7 @@ plt.xlabel('Year', fontsize=14)
 plt.grid(True, linestyle='--', alpha=0.3)
 plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=4, fontsize=12)
 plt.tight_layout()
-plt.savefig('industry_restructuring.png', dpi=300)
+plt.savefig(os.path.join(results_dir, 'industry_restructuring_improved.png'), dpi=300)
 
 #########################################
 # 5. IMPROVED DIFFERENCE-IN-DIFFERENCES
@@ -377,6 +405,16 @@ plt.savefig('industry_restructuring.png', dpi=300)
 print("\n" + "="*60)
 print("IMPROVED DIFFERENCE-IN-DIFFERENCES ANALYSIS")
 print("="*60)
+
+# Add structural break indicators for Tech 3.0
+data['Early_Tech3'] = ((data['Year'] >= 2013) & (data['Year'] <= 2019)).astype(int)
+data['Late_Tech3'] = ((data['Year'] >= 2020) & (data['Year'] <= 2024)).astype(int)
+
+# Add recession indicator
+data['Recession'] = 0
+data.loc[(data['Year'] == 2001) | 
+         ((data['Year'] >= 2008) & (data['Year'] <= 2009)) | 
+         (data['Year'] == 2020), 'Recession'] = 1
 
 # Create panel dataset for DiD analysis
 panel_data = []
@@ -395,6 +433,9 @@ for i, year in enumerate(years):
         'Mobile_Subscriptions': data.loc[i, 'Mobile_Subscriptions'],
         'Robot_Density': data.loc[i, 'Robot_Density'],
         'AI_Investment': data.loc[i, 'AI_Investment'],
+        'Recession': data.loc[i, 'Recession'],
+        'Early_Tech3': data.loc[i, 'Early_Tech3'],
+        'Late_Tech3': data.loc[i, 'Late_Tech3'],
         'Treatment': 1  # Treatment group
     })
     
@@ -412,6 +453,9 @@ for i, year in enumerate(years):
         'Mobile_Subscriptions': data.loc[i, 'Mobile_Subscriptions'] * 0.9,
         'Robot_Density': data.loc[i, 'Robot_Density'] * 0.7,
         'AI_Investment': data.loc[i, 'AI_Investment'] * 0.6,
+        'Recession': data.loc[i, 'Recession'],
+        'Early_Tech3': data.loc[i, 'Early_Tech3'],
+        'Late_Tech3': data.loc[i, 'Late_Tech3'],
         'Treatment': 0  # Control group
     })
 
@@ -427,22 +471,56 @@ panel_df['Tech3_Period'] = ((panel_df['Year'] >= 2013) & (panel_df['Year'] <= 20
 panel_df['DiD_Tech1'] = panel_df['Treatment'] * panel_df['Tech1_Period']
 panel_df['DiD_Tech2'] = panel_df['Treatment'] * panel_df['Tech2_Period']
 panel_df['DiD_Tech3'] = panel_df['Treatment'] * panel_df['Tech3_Period']
+panel_df['DiD_Early_Tech3'] = panel_df['Treatment'] * panel_df['Early_Tech3']
+panel_df['DiD_Late_Tech3'] = panel_df['Treatment'] * panel_df['Late_Tech3']
 
-# Run DiD regression
+# Add time trend variables for improved DiD
+panel_df['Year_trend'] = panel_df['Year'] - panel_df['Year'].min()
+panel_df['Treatment_trend'] = panel_df['Treatment'] * panel_df['Year_trend']
+
+# Run basic DiD regression
 X_did = sm.add_constant(panel_df[['Treatment', 'Tech1_Period', 'Tech2_Period', 'Tech3_Period',
                                   'DiD_Tech1', 'DiD_Tech2', 'DiD_Tech3']])
 did_model = sm.OLS(panel_df['GDP_Growth'], X_did)
 did_results = did_model.fit(cov_type='HC1')
 
-print("\nDifference-in-Differences Analysis Results:")
+print("\nBasic Difference-in-Differences Analysis Results:")
 print("-------------------------------------------")
 print(did_results.summary().tables[1])
 
-# Display DiD coefficients interpretation
-print("\nDifference-in-Differences Interpretation:")
-print(f"Tech 1.0 (1995-2002) effect: {did_results.params['DiD_Tech1']:.3f} percentage points")
-print(f"Tech 2.0 (2003-2012) effect: {did_results.params['DiD_Tech2']:.3f} percentage points") 
-print(f"Tech 3.0 (2013-2024) effect: {did_results.params['DiD_Tech3']:.3f} percentage points")
+# Run improved DiD regression with time trends and recession control
+X_did_improved = sm.add_constant(panel_df[['Treatment', 'Tech1_Period', 'Tech2_Period', 'Tech3_Period',
+                                          'DiD_Tech1', 'DiD_Tech2', 'DiD_Tech3', 
+                                          'Year_trend', 'Treatment_trend', 'Recession']])
+did_improved_model = sm.OLS(panel_df['GDP_Growth'], X_did_improved)
+did_improved_results = did_improved_model.fit(cov_type='HC1')
+
+print("\nImproved Difference-in-Differences Analysis Results (with trends):")
+print("-----------------------------------------------------------")
+print(did_improved_results.summary().tables[1])
+
+# Run DiD with Tech 3.0 broken into early and late periods
+X_did_tech3_split = sm.add_constant(panel_df[['Treatment', 'Tech1_Period', 'Tech2_Period',
+                                             'Early_Tech3', 'Late_Tech3',
+                                             'DiD_Tech1', 'DiD_Tech2', 
+                                             'DiD_Early_Tech3', 'DiD_Late_Tech3',
+                                             'Recession']])
+did_tech3_split_model = sm.OLS(panel_df['GDP_Growth'], X_did_tech3_split)
+did_tech3_split_results = did_tech3_split_model.fit(cov_type='HC1')
+
+print("\nTech 3.0 Split Analysis (Early vs Late Period):")
+print("-------------------------------------------")
+print(did_tech3_split_results.summary().tables[1])
+
+# Display DiD coefficients interpretation from the improved model
+print("\nDifference-in-Differences Interpretation (Improved Model):")
+print(f"Tech 1.0 (1995-2002) effect: {did_improved_results.params['DiD_Tech1']:.3f} percentage points")
+print(f"Tech 2.0 (2003-2012) effect: {did_improved_results.params['DiD_Tech2']:.3f} percentage points") 
+print(f"Tech 3.0 (2013-2024) effect: {did_improved_results.params['DiD_Tech3']:.3f} percentage points")
+
+print("\nTech 3.0 Period Breakdown:")
+print(f"Early Tech 3.0 (2013-2019) effect: {did_tech3_split_results.params['DiD_Early_Tech3']:.3f} percentage points")
+print(f"Late Tech 3.0 (2020-2024) effect: {did_tech3_split_results.params['DiD_Late_Tech3']:.3f} percentage points")
 
 # Plot DiD visualization
 plt.figure(figsize=(14, 8))
@@ -476,9 +554,10 @@ plt.grid(True, linestyle='--', alpha=0.7)
 plt.title('Difference-in-Differences: Technology Wave Effects', fontsize=16)
 plt.ylabel('Annual GDP Growth (%)', fontsize=14)
 plt.xlabel('Year', fontsize=14)
-plt.legend(loc='best', fontsize=12)
+plt.legend(loc='upper left', fontsize=12)
+plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('diff_in_diff_analysis.png', dpi=300)
+plt.savefig(os.path.join(results_dir, 'diff_in_diff_analysis.png'), dpi=300)
 
 #########################################
 # 6. ADVANCED FORECASTING
@@ -573,6 +652,15 @@ for name in ['Baseline'] + list(scenarios.keys()):
     # Store in dataframe
     forecast_data[f'{name}_Level'] = gdp_level
 
+# Correct calculations for comparing GDP levels
+print("\nCumulative GDP Level Impact by 2035 (Indexed to 100 in 2024):")
+for name in scenarios.keys():
+    final_level = forecast_data[f'{name}_Level'].iloc[-1]
+    baseline_final = forecast_data['Baseline_Level'].iloc[-1]
+    percentage_gain = ((final_level / baseline_final) - 1) * 100
+    print(f"{name} Scenario: {final_level:.1f} (vs. Baseline: {baseline_final:.1f}), " + 
+          f"Gain: +{percentage_gain:.1f}%")
+
 # Display forecast results
 print("\nGDP Growth Forecasts by Scenario (2025-2035):")
 print(forecast_data[['Year', 'Baseline', 'Conservative', 'Moderate', 'Optimistic']])
@@ -584,17 +672,114 @@ for name in scenarios.keys():
     print(f"{name} Scenario: {final_level:.1f} (vs. Baseline: {baseline_level:.1f}), " + 
           f"Gain: +{((final_level/baseline_level)-1)*100:.1f}%")
 
-# Visualize forecasts
+# Visualize forecasts with improved confidence intervals and realistic projections
 plt.figure(figsize=(14, 8))
 
-# Historical data
+# Calculate manual confidence intervals if not already in the forecast_data
+if 'Lower_CI' not in forecast_data.columns or 'Upper_CI' not in forecast_data.columns:
+    # Safe way to access the standard error
+    if arima_results is not None and hasattr(arima_results, 'bse') and len(arima_results.bse) > 0:
+        forecast_std_error = arima_results.bse.iloc[-1] if isinstance(arima_results.bse, pd.Series) else arima_results.bse[-1]
+    else:
+        forecast_std_error = 0.5  # Fallback value
+    
+    # Create confidence intervals manually
+    forecast_data['Lower_CI'] = forecast_data['Baseline'] - 1.96 * forecast_std_error
+    forecast_data['Upper_CI'] = forecast_data['Baseline'] + 1.96 * forecast_std_error
+    print("Created manual confidence intervals for forecast visualization")
+
+# Historical data with smoothed trend line
 plt.plot(data['Year'], data['GDP_Growth'], marker='o', linestyle='-', 
          color='navy', linewidth=2, label='Historical GDP Growth')
+
+# Add trend line for historical data
+years_numeric = np.array(range(len(data['Year'])))
+z = np.polyfit(years_numeric, data['GDP_Growth'], 2)
+p = np.poly1d(z)
+plt.plot(data['Year'], p(years_numeric), "b--", linewidth=1.5, alpha=0.4, 
+         label='Historical Trend')
+
+# Baseline forecast with confidence interval
+plt.plot(forecast_data['Year'], forecast_data['Baseline'], marker='', 
+         linestyle='--', color='gray', linewidth=2, 
+         label='Baseline Forecast')
+         
+# Add confidence intervals to baseline forecast
+plt.fill_between(forecast_data['Year'], 
+                forecast_data['Lower_CI'], 
+                forecast_data['Upper_CI'], 
+                color='gray', alpha=0.2, label='95% Confidence Interval')
+
+# Scenario forecasts with proper connection to historical data
+last_historical_year = data['Year'].iloc[-1]
+last_historical_value = data['GDP_Growth'].iloc[-1]
+
+# Connect historical to forecast for each scenario
+connect_x = [last_historical_year, forecast_data['Year'].iloc[0]]
+
+for name, color in zip(['Conservative', 'Moderate', 'Optimistic'], ['green', 'orange', 'red']):
+    # Get the first forecast value
+    first_forecast = forecast_data[name].iloc[0]
+    
+    # Connect line between historical and forecast
+    plt.plot(connect_x, [last_historical_value, first_forecast], 
+             color=color, linestyle='-', linewidth=1.5, alpha=0.5)
+    
+    # Plot the forecast line
+    plt.plot(forecast_data['Year'], forecast_data[name], marker='', 
+             linestyle='-', color=color, linewidth=2.5, 
+             label=f'{name} Tech 3.0 Scenario')
+    
+    # Calculate average impact for annotation
+    avg_impact = forecast_data[name].mean() - forecast_data['Baseline'].mean()
+    
+    # Add scenario impact annotation
+    plt.annotate(f"{name}: +{avg_impact:.1f}pp", 
+                xy=(2030, forecast_data[name].iloc[5]), 
+                xytext=(2030, forecast_data[name].iloc[5] + 0.2),
+                color=color, fontweight='bold', ha='center',
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=color, alpha=0.8))
+
+# Highlighting
+plt.axvspan(2013, 2024, alpha=0.2, color='blue', label='Tech 3.0 (Current)')
+plt.axvspan(2025, 2035, alpha=0.2, color='purple', label='Tech 3.0 (Forecast)')
+
+# Add recession bands for context
+for year in [2001, 2008, 2020]:
+    if year in data['Year'].values:
+        plt.axvline(x=year, color='red', linestyle=':', alpha=0.3)
+
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.title('GDP Growth Forecast Scenarios: Tech 3.0 Impact (2025-2035)', fontsize=16)
+plt.ylabel('Annual GDP Growth (%)', fontsize=14)
+plt.xlabel('Year', fontsize=14)
+plt.legend(loc='lower left', fontsize=10)
+plt.ylim(-4, 6)
+
+# Add annotation with cumulative impact by 2035
+for name, color in zip(['Conservative', 'Moderate', 'Optimistic'], ['green', 'orange', 'red']):
+    final_level = forecast_data[f'{name}_Level'].iloc[-1]
+    baseline_final = forecast_data['Baseline_Level'].iloc[-1]
+    percentage_gain = ((final_level / baseline_final) - 1) * 100
+    
+    plt.annotate(f"2035 GDP: +{percentage_gain:.1f}%", 
+                xy=(2035, forecast_data[name].iloc[-1]), 
+                xytext=(2035, forecast_data[name].iloc[-1] - 0.3),
+                color=color, fontsize=9, ha='right')
+
+plt.tight_layout()
+plt.savefig(os.path.join(results_dir, 'gdp_growth_forecast_improved.png'), dpi=300)
 
 # Forecast lines
 plt.plot(forecast_data['Year'], forecast_data['Baseline'], marker='', 
          linestyle='--', color='gray', linewidth=2, 
          label='Baseline Forecast (ARIMA)')
+         
+# Add confidence intervals to baseline forecast
+plt.fill_between(forecast_data['Year'], forecast_data['Lower_CI'], forecast_data['Upper_CI'], 
+                color='gray', alpha=0.2, label='95% Confidence Interval')
+
+# Scenario forecasts         
 plt.plot(forecast_data['Year'], forecast_data['Conservative'], marker='', 
          linestyle='-', color='green', linewidth=2, 
          label='Conservative Tech 3.0 Scenario')
@@ -609,6 +794,20 @@ plt.plot(forecast_data['Year'], forecast_data['Optimistic'], marker='',
 plt.axvspan(2013, 2024, alpha=0.2, color='blue', label='Tech 3.0 (Current)')
 plt.axvspan(2025, 2035, alpha=0.2, color='purple', label='Tech 3.0 (Forecast)')
 
+# Add annotations for scenario impacts
+plt.annotate(f"Conservative: +{scenarios['Conservative']['tech_impact']}pp", 
+             xy=(2030, forecast_data['Conservative'].iloc[5]), 
+             xytext=(2030, forecast_data['Conservative'].iloc[5] + 0.3),
+             color='green', fontweight='bold')
+plt.annotate(f"Moderate: +{scenarios['Moderate']['tech_impact']}pp", 
+             xy=(2030, forecast_data['Moderate'].iloc[5]), 
+             xytext=(2030, forecast_data['Moderate'].iloc[5] + 0.3),
+             color='orange', fontweight='bold')
+plt.annotate(f"Optimistic: +{scenarios['Optimistic']['tech_impact']}pp", 
+             xy=(2030, forecast_data['Optimistic'].iloc[5]), 
+             xytext=(2030, forecast_data['Optimistic'].iloc[5] + 0.3),
+             color='red', fontweight='bold')
+
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.title('GDP Growth Forecast Scenarios: Tech 3.0 Impact (2025-2035)', fontsize=16)
 plt.ylabel('Annual GDP Growth (%)', fontsize=14)
@@ -617,7 +816,7 @@ plt.legend(loc='best', fontsize=12)
 plt.ylim(-4, 6)
 
 plt.tight_layout()
-plt.savefig('gdp_growth_forecast.png', dpi=300)
+plt.savefig('gdp_growth_forecast_improved.png', dpi=300)
 
 #########################################
 # 7. AI IMPACT ANALYSIS
@@ -626,38 +825,88 @@ print("\n" + "="*60)
 print("AI IMPACT ANALYSIS")
 print("="*60)
 
+# Create lagged AI variables to capture delayed effects
+for col in ['AI_Patents', 'AI_Investment', 'Tech_Research_Contribution']:
+    data[f'{col}_Lag3'] = data[col].shift(3)
+    data[f'{col}_Lag5'] = data[col].shift(5)
+
+# Create industry-specific technology indices
+for industry in ['Manufacturing', 'IT', 'Finance']:
+    industry_col = f'{industry}_GDP_Share'
+    # Calculate correlations for weighting
+    tech1_corr = data['Tech1_Index'].corr(data[industry_col])
+    tech2_corr = data['Tech2_Index'].corr(data[industry_col])
+    tech3_corr = data['Tech3_Index'].corr(data[industry_col])
+    
+    # Create weighted index based on correlations
+    weights_sum = abs(tech1_corr) + abs(tech2_corr) + abs(tech3_corr)
+    data[f'{industry}_Tech_Index'] = (
+        data['Tech1_Index'] * (abs(tech1_corr)/weights_sum) +
+        data['Tech2_Index'] * (abs(tech2_corr)/weights_sum) +
+        data['Tech3_Index'] * (abs(tech3_corr)/weights_sum)
+    )
+
 # AI impact correlation analysis
 ai_correlations = data[['AI_Patents', 'AI_Investment', 'Tech_Research_Contribution']].corrwith(data['GDP_Growth'])
 print("\nCorrelations between AI metrics and GDP Growth:")
 for metric, corr in ai_correlations.items():
     print(f"{metric}: {corr:.4f}")
 
-# Run regression specifically for AI impact
+# Lagged correlations
+lagged_ai_correlations = data[['AI_Patents_Lag3', 'AI_Investment_Lag3', 'Tech_Research_Contribution_Lag3']].corrwith(data['GDP_Growth'])
+print("\nCorrelations with 3-year lagged AI metrics:")
+for metric, corr in lagged_ai_correlations.items():
+    print(f"{metric}: {corr:.4f}")
+
+# Run regression specifically for AI impact - contemporaneous effects
 X_ai = sm.add_constant(data[['AI_Patents', 'AI_Investment', 'Tech_Research_Contribution']])
 ai_model = sm.OLS(data['GDP_Growth'], X_ai)
 ai_results = ai_model.fit(cov_type='HC1')
 
-print("\nAI Impact Regression Results:")
+print("\nAI Impact Regression Results (Contemporaneous):")
 print("-----------------------------")
 print(ai_results.summary().tables[1])
 
-# AI impact on different industries
-print("\nAI Impact on Industry Sectors:")
+# Run regression with lagged AI variables
+X_ai_lagged = sm.add_constant(data.dropna()[['AI_Patents', 'AI_Investment', 
+                                           'AI_Patents_Lag3', 'AI_Investment_Lag3']])
+ai_lagged_model = sm.OLS(data.dropna()['GDP_Growth'], X_ai_lagged)
+ai_lagged_results = ai_lagged_model.fit(cov_type='HC1')
+
+print("\nAI Impact Regression Results (With 3-year Lags):")
+print("-----------------------------")
+print(ai_lagged_results.summary().tables[1])
+
+# AI impact on different industries with both contemporary and lagged effects
+print("\nAI Impact on Industry Sectors (Including Lagged Effects):")
 for industry in ['Manufacturing_GDP_Share', 'IT_GDP_Share', 'Finance_GDP_Share']:
     industry_label = industry.replace('_GDP_Share', '')
-    ai_industry_model = sm.OLS(data[industry], 
-                              sm.add_constant(data[['AI_Patents', 'AI_Investment']]))
+    
+    # Filter data to remove NaN values from lagged variables
+    filtered_data = data.dropna(subset=['AI_Patents_Lag3', 'AI_Investment_Lag3'])
+    
+    ai_industry_model = sm.OLS(filtered_data[industry], 
+                              sm.add_constant(filtered_data[['AI_Patents', 'AI_Investment',
+                                                          'AI_Patents_Lag3', 'AI_Investment_Lag3']]))
     ai_industry_results = ai_industry_model.fit(cov_type='HC1')
     print(f"\n{industry_label} Sector:")
     print(ai_industry_results.summary().tables[1])
 
-# Visualize AI metrics and GDP growth
+# Visualize AI metrics and GDP growth with trend lines
 plt.figure(figsize=(14, 8))
 
 # Plot GDP growth
 ax1 = plt.gca()
 ax1.plot(data['Year'], data['GDP_Growth'], marker='o', linestyle='-', 
         color='navy', linewidth=2, label='GDP Growth (%)')
+
+# Add polynomial trend line for GDP growth
+years_numeric = np.array(range(len(data['Year'])))
+z = np.polyfit(years_numeric, data['GDP_Growth'], 2)
+p = np.poly1d(z)
+ax1.plot(data['Year'], p(years_numeric), "b--", linewidth=1.5, alpha=0.8, 
+        label='GDP Growth Trend')
+
 ax1.set_xlabel('Year', fontsize=14)
 ax1.set_ylabel('GDP Growth (%)', fontsize=14, color='navy')
 ax1.tick_params(axis='y', labelcolor='navy')
@@ -668,11 +917,29 @@ ax2.plot(data['Year'], data['AI_Patents'], marker='s', linestyle='--',
         color='red', label='AI Patents (thousands)')
 ax2.plot(data['Year'], data['AI_Investment'] / 10, marker='^', linestyle=':', 
         color='green', label='AI Investment (billions USD / 10)')
+
+# Add trend lines for AI metrics
+z_patents = np.polyfit(years_numeric, data['AI_Patents'], 2)
+p_patents = np.poly1d(z_patents)
+ax2.plot(data['Year'], p_patents(years_numeric), "r--", linewidth=1.5, alpha=0.5)
+
+z_invest = np.polyfit(years_numeric, data['AI_Investment'] / 10, 2)
+p_invest = np.poly1d(z_invest)
+ax2.plot(data['Year'], p_invest(years_numeric), "g--", linewidth=1.5, alpha=0.5)
+
 ax2.set_ylabel('AI Metrics', fontsize=14, color='darkgreen')
 ax2.tick_params(axis='y', labelcolor='darkgreen')
 
 # Highlight Tech 3.0 period
 plt.axvspan(2013, 2024, alpha=0.2, color='blue', label='Tech 3.0 Era')
+
+# Add correlation annotations
+ai_gdp_corr = data['AI_Patents'].corr(data['GDP_Growth'])
+ai_lagged_gdp_corr = data['AI_Patents_Lag3'].dropna().corr(data['GDP_Growth'].iloc[3:])
+
+plt.annotate(f"AI-GDP Correlation: {ai_gdp_corr:.2f}\nLagged (3yr) Correlation: {ai_lagged_gdp_corr:.2f}", 
+             xy=(2018, 5), xytext=(2018, 4.5),
+             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
 
 # Add legends
 lines1, labels1 = ax1.get_legend_handles_labels()
@@ -682,7 +949,7 @@ ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left', fontsize=12)
 plt.title('AI Metrics and GDP Growth (1990-2024)', fontsize=16)
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('ai_impact_analysis.png', dpi=300)
+plt.savefig(os.path.join(results_dir, 'ai_impact_analysis_improved.png'), dpi=300)
 
 #########################################
 # 8. TECHNOLOGY RESILIENCE INDEX
@@ -760,7 +1027,7 @@ plt.ylabel('Resilience Index', fontsize=14)
 plt.xlabel('Year', fontsize=14)
 plt.legend(loc='upper left', fontsize=12)
 plt.tight_layout()
-plt.savefig('tech_resilience_index.png', dpi=300)
+plt.savefig(os.path.join(results_dir, 'tech_resilience_index.png'), dpi=300)
 
 #########################################
 # 9. CONCLUSION & INTERPRETATION
