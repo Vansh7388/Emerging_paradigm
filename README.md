@@ -64,6 +64,9 @@ This visualization shows how technological resilience has increased over time, w
 ```
 Project/
 │
+├── Week1_Lecture.pdf          # Course lecture on tech waves and emerging technologies
+├── project.odt                # Project specifications
+├── Tech Waves Regression with Real Historical Data.txt  # Analysis script
 ├── tech_waves_regression.py   # Main comprehensive analysis script
 ├── README.md                  # This file
 │
@@ -94,31 +97,144 @@ Project/
 
 6. **Future Projections** suggest Tech 3.0 could add between +0.2 and +1.9 percentage points to annual GDP growth, potentially resulting in GDP levels 1.7% to 20.5% higher by 2035 compared to baseline.
 
-## Methodology
+## Models and Methodology
 
-The analysis employs several advanced methodological approaches:
+The analysis employs several advanced econometric and statistical approaches:
 
-1. **Time Series Regression**: Analyzes the impact of technology adoption metrics on GDP growth over time.
+### Regression Models
+1. **Period-Dummy Regression**: Implements structural break analysis using time period dummies to capture the effect of each technology wave
+   ```python
+   X = sm.add_constant(data[['Tech1', 'Tech2', 'Tech3']])
+   dummy_model = sm.OLS(data['GDP_Growth'], X)
+   ```
 
-2. **Difference-in-Differences Analysis**: Compares regions with different levels of technology adoption to isolate causal effects.
+2. **Continuous Proxy Models**: Uses changes in technology adoption metrics as continuous variables
+   ```python
+   X_proxy = sm.add_constant(data_diff[['Internet_Adoption_Delta', 
+                                     'Mobile_Subscriptions_Delta', 
+                                     'Robot_Density_Delta',
+                                     'AI_Investment_Delta']])
+   proxy_model = sm.OLS(data_diff['GDP_Growth'], X_proxy)
+   ```
 
-3. **Technology Indices Development**: Creates normalized indices for each tech wave using key adoption metrics.
+3. **Panel Regression Models**: Incorporates both time and cross-sectional variation with robust standard errors
+   ```python
+   panel_df = pd.DataFrame(panel_data)
+   X_did = sm.add_constant(panel_df[['Treatment', 'Tech1_Period', 'Tech2_Period', 'Tech3_Period',
+                                    'DiD_Tech1', 'DiD_Tech2', 'DiD_Tech3']])
+   did_model = sm.OLS(panel_df['GDP_Growth'], X_did)
+   did_results = did_model.fit(cov_type='HC1')
+   ```
 
-4. **Industry Restructuring Analysis**: Examines how technology waves have reshaped the composition of the economy.
+### Causal Inference Methods
+4. **Difference-in-Differences (DiD)**: Compares North America (treatment) vs. OECD Europe (control) across tech wave periods
+   ```python
+   panel_df['DiD_Tech1'] = panel_df['Treatment'] * panel_df['Tech1_Period']
+   panel_df['DiD_Tech2'] = panel_df['Treatment'] * panel_df['Tech2_Period']
+   panel_df['DiD_Tech3'] = panel_df['Treatment'] * panel_df['Tech3_Period']
+   ```
 
-5. **Resilience Index Modeling**: Measures how technology adoption affects economic resilience during shocks.
+5. **Fixed Effects Models**: Controls for time-invariant characteristics across regions
+   ```python
+   X_did_improved = sm.add_constant(panel_df[['Treatment', 'Tech1_Period', 'Tech2_Period', 'Tech3_Period',
+                                            'DiD_Tech1', 'DiD_Tech2', 'DiD_Tech3', 
+                                            'Year_trend', 'Treatment_trend', 'Recession']])
+   ```
 
-6. **Scenario-Based Forecasting**: Projects potential future growth impacts based on different AI adoption trajectories.
+### Composite Index Construction
+6. **Principal Component Analysis (PCA)**: Constructs the Tech 3.0 Index from multiple metrics
+   ```python
+   tech3_features = data[['Robot_Density', 'AI_Patents', 'AI_Investment']]
+   pca = PCA(n_components=1)
+   data['Tech3_Index'] = scaler.fit_transform(
+       pca.fit_transform(scaler.fit_transform(tech3_features))
+   ).flatten()
+   ```
+
+7. **Min-Max Scaling**: Normalizes technology adoption metrics to 0-1 scale
+   ```python
+   scaler = MinMaxScaler()
+   data['Tech1_Index'] = scaler.fit_transform(data[['Internet_Adoption']]).flatten()
+   ```
+
+8. **Weighted Composite Indices**: Creates the Technology Resilience Index using weighted metrics
+   ```python
+   resilience_weights = {
+       'Internet_Adoption': 0.15,
+       'Mobile_Subscriptions': 0.15,
+       'Robot_Density': 0.20,
+       'AI_Patents': 0.20,
+       'AI_Investment': 0.20,
+       'Tech_Research_Contribution': 0.10
+   }
+   ```
+
+### Time Series Analysis and Forecasting
+9. **ARIMA Models**: Forecasts baseline GDP growth trajectories
+   ```python
+   arima_order = (1, 0, 1)
+   arima_model = ARIMA(gdp_series, order=arima_order)
+   arima_results = arima_model.fit()
+   arima_forecast = arima_results.forecast(steps=forecast_periods)
+   ```
+
+10. **Scenario-Based Projections**: Models multiple Tech 3.0 adoption scenarios
+    ```python
+    scenarios = {
+        'Conservative': {'tech_impact': 0.4, 'tech_growth': 0.03},
+        'Moderate': {'tech_impact': 1.2, 'tech_growth': 0.05},
+        'Optimistic': {'tech_impact': 2.5, 'tech_growth': 0.08}
+    }
+    ```
+
+### Industry Analysis
+11. **Industry Correlation Analysis**: Examines relationships between technology indices and industry GDP shares
+    ```python
+    industry_correlations = pd.DataFrame(index=['Tech1_Index', 'Tech2_Index', 'Tech3_Index', 'Composite_Tech_Index'],
+                                       columns=['Manufacturing_GDP_Share', 'IT_GDP_Share', 'Finance_GDP_Share'])
+    ```
+
+12. **Industry-Specific Regressions**: Estimates technology impacts on each industry sector
+    ```python
+    for industry in industries:
+        X_ind = sm.add_constant(data[['Tech1_Index', 'Tech2_Index', 'Tech3_Index']])
+        model_ind = sm.OLS(data[industry], X_ind)
+        results_ind = model_ind.fit(cov_type='HC1')
+    ```
 
 ## Data Sources
 
-The analysis uses data from various sources including:
-- GDP growth data from World Bank/IMF
-- Internet adoption rates from World Bank/ITU
-- Mobile subscription data from telecommunications reports
-- Robot density data from International Federation of Robotics (IFR)
-- AI patents and investment data from research databases
-- Industry GDP contribution from national accounts data
+The analysis incorporates a comprehensive dataset covering 1990-2024 from multiple reliable sources:
+
+### Economic Indicators
+- **GDP Growth Data**: Annual percentage growth rates from World Bank and IMF databases for North America and OECD Europe
+- **Industry Composition Data**: Sectoral GDP contribution percentages for Manufacturing, IT, and Financial Services sectors from national accounts data
+
+### Tech 1.0 Metrics (Internet Era)
+- **Internet Adoption**: Percentage of population with internet access from World Bank/ITU data
+  - Range: 0.8% (1990) to 93.5% (2024)
+  - Key period: Rapid growth from 9.2% (1995) to 49.1% (2001)
+
+### Tech 2.0 Metrics (Mobile/Social Era)
+- **Mobile Subscriptions**: Per 100 people from telecommunications reports and ITU data
+  - Range: 2.1 (1990) to 138.0 (2024) 
+  - Key period: Accelerated adoption from 38.5 (2000) to 110.2 (2012)
+
+### Tech 3.0 Metrics (AI/Automation Era)
+- **Robot Density**: Industrial robots per 10,000 manufacturing workers from IFR annual reports
+  - Range: 42 (1990) to 405 (2024)
+  - Key period: Sharp increase from 189 (2012) to 405 (2024)
+- **AI Patents**: Global AI patent filings in thousands from patent databases
+  - Range: 0.2k (1990) to 137.6k (2024)
+  - Key period: Exponential growth from 15.4k (2012) to 137.6k (2024)
+- **AI Investment**: Global investment in billions USD from venture capital and corporate reporting
+  - Range: $0.1B (1990) to $189.3B (2024)
+  - Key period: Dramatic increase from $8.4B (2012) to $189.3B (2024)
+
+### Supplementary Data
+- **Tech Research Contribution**: Percentage contribution to GDP from technology research
+- **Control Region Data**: GDP growth rates for OECD Europe as comparative control region
+- **Recession Indicators**: Binary indicators for major economic downturns (2001, 2008-2009, 2020)
 
 ## Requirements
 
@@ -141,3 +257,6 @@ This project was completed as part of the "Emerging Paradigms in Computing Techn
 
 This project is educational in nature and provided for academic purposes.
 
+## Acknowledgments
+
+This analysis builds on economic research by various institutions and researchers who have studied the productivity and growth impacts of technological innovation waves.
