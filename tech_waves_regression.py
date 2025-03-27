@@ -6,7 +6,6 @@ import statsmodels.api as sm
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.stats.diagnostic import het_breuschpagan, breaks_cusumolsresid
-from statsmodels.stats.stattools import durbin_watson
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from linearmodels.panel import PanelOLS
 from statsmodels.tsa.stattools import adfuller, grangercausalitytests
@@ -16,7 +15,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
 
-# Make sure results directory exists
+# Create results directory if it doesn't exist
 import os
 results_dir = 'results'
 if not os.path.exists(results_dir):
@@ -38,158 +37,20 @@ print("=" * 60)
 # 1. DATA PREPARATION AND EXPLORATION
 #########################################
 
-# Year range
-years = list(range(1990, 2025))
+# Load main dataset
+data_path = os.path.join('data', 'tech_economic_data.csv')
+data = pd.read_csv(data_path)
 
-# REAL GDP Growth Data for North America (US & Canada) - Based on World Bank/IMF data
-# Annual percentage growth rate of GDP for United States
-gdp_growth = [
-    # 1990-1999
-    1.9, -0.1, 3.6, 2.7, 4.0, 2.7, 3.8, 4.5, 4.5, 4.8,
-    # 2000-2009
-    4.1, 1.0, 1.7, 2.8, 3.9, 3.5, 2.9, 1.9, -0.1, -2.5,
-    # 2010-2019
-    2.6, 1.6, 2.2, 1.8, 2.5, 2.9, 1.6, 2.4, 2.9, 2.3,
-    # 2020-2024 (including COVID impact and recovery)
-    -3.4, 5.7, 2.1, 2.2, 2.4  # 2024 is estimate from IMF
-]
+# Load tech wave periods
+wave_periods_path = os.path.join('data', 'tech_wave_periods.csv')
+wave_periods = pd.read_csv(wave_periods_path)
 
-# REAL Internet adoption (% of population) - Based on World Bank/ITU data
-internet_adoption = [
-    # 1990-1999
-    0.8, 1.3, 1.7, 2.3, 4.9, 9.2, 16.4, 22.0, 30.1, 35.9,
-    # 2000-2009
-    43.1, 49.1, 59.0, 62.0, 65.0, 68.0, 69.0, 75.0, 74.0, 76.0,
-    # 2010-2019
-    71.7, 69.7, 74.7, 71.4, 73.0, 74.5, 75.7, 87.3, 89.0, 90.8,
-    # 2020-2024
-    91.0, 92.0, 92.5, 93.0, 93.5  # 2024 is estimate
-]
+# Load recession periods
+recession_path = os.path.join('data', 'recession_periods.csv')
+recessions = pd.read_csv(recession_path)
 
-# REAL Mobile cellular subscriptions (per 100 people) - Based on World Bank/ITU data
-mobile_subscriptions = [
-    # 1990-1999
-    2.1, 3.5, 5.2, 6.2, 9.1, 12.7, 16.3, 20.3, 25.1, 30.6,
-    # 2000-2009
-    38.5, 44.7, 54.8, 62.5, 68.3, 76.5, 83.4, 89.0, 93.0, 97.1,
-    # 2010-2019
-    98.2, 105.9, 110.2, 114.2, 117.6, 121.3, 121.9, 120.5, 123.8, 128.9,
-    # 2020-2024
-    130.9, 132.8, 135.3, 137.0, 138.0  # 2024 is estimate
-]
-
-# REAL Robot density (per 10k manufacturing workers) - Based on IFR data
-robot_density = [
-    # 1990-1999
-    42, 47, 51, 55, 59, 64, 68, 74, 79, 86,
-    # 2000-2009
-    93, 98, 103, 108, 113, 125, 135, 146, 156, 160,
-    # 2010-2019
-    165, 178, 189, 198, 210, 223, 242, 260, 275, 295,
-    # 2020-2024
-    312, 332, 355, 380, 405  # More recent figures from IFR annual reports
-]
-
-# AI-related metrics (based on research on AI adoption, investment, and impact)
-# AI patents filed globally (thousands)
-ai_patents = [
-    # 1990-1999
-    0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9, 1.1, 1.3, 1.5,
-    # 2000-2009
-    1.8, 2.1, 2.5, 3.0, 3.6, 4.3, 5.2, 6.2, 7.4, 8.9,
-    # 2010-2019
-    10.7, 12.8, 15.4, 18.5, 22.2, 26.6, 32.0, 38.4, 46.1, 55.3,
-    # 2020-2024
-    66.4, 79.6, 95.6, 114.7, 137.6  # Accelerating growth in recent years
-]
-
-# AI investment (billions USD)
-ai_investment = [
-    # 1990-1999
-    0.1, 0.1, 0.2, 0.2, 0.3, 0.3, 0.4, 0.5, 0.6, 0.7,
-    # 2000-2009
-    0.9, 1.1, 1.3, 1.6, 1.9, 2.3, 2.8, 3.3, 4.0, 4.8,
-    # 2010-2019
-    5.8, 7.0, 8.4, 10.1, 12.1, 14.5, 17.4, 25.8, 36.0, 50.0,
-    # 2020-2024
-    67.9, 93.5, 119.2, 151.4, 189.3  # Sharp acceleration in recent years
-]
-
-# Research contribution to GDP by tech industry (%)
-tech_research_contribution = [
-    # 1990-1999
-    0.2, 0.3, 0.3, 0.4, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
-    # 2000-2009
-    1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
-    # 2010-2019
-    2.1, 2.2, 2.3, 2.4, 2.5, 2.7, 2.9, 3.1, 3.3, 3.5,
-    # 2020-2024
-    3.7, 4.0, 4.3, 4.6, 5.0  # Growing contribution
-]
-
-# OECD Europe GDP Growth for comparison 
-oecd_europe_gdp_growth = [
-    # 1990-1999 (OECD Europe average)
-    3.2, 1.9, 1.2, -0.2, 2.7, 2.8, 2.0, 2.7, 3.0, 3.1,
-    # 2000-2009
-    3.9, 2.1, 1.3, 1.4, 2.6, 2.1, 3.4, 3.1, 0.4, -4.5,
-    # 2010-2019
-    2.1, 1.8, -0.2, 0.7, 1.9, 2.3, 2.0, 2.5, 1.9, 1.6,
-    # 2020-2024
-    -6.1, 5.4, 3.4, 0.9, 1.4  # 2024 projection
-]
-
-# Industry-specific GDP contribution (%) - Manufacturing
-manufacturing_gdp_contribution = [
-    # 1990-1999
-    17.9, 17.4, 17.2, 16.9, 16.8, 16.6, 16.3, 16.0, 15.8, 15.5,
-    # 2000-2009
-    15.1, 14.7, 14.1, 13.8, 13.4, 13.0, 12.8, 12.6, 12.1, 11.3,
-    # 2010-2019
-    11.7, 11.9, 11.9, 11.8, 11.7, 11.5, 11.3, 11.2, 11.0, 10.9,
-    # 2020-2024
-    10.8, 11.0, 11.1, 11.2, 11.3  # Slight recovery post-pandemic
-]
-
-# Industry-specific GDP contribution (%) - Information Technology
-it_gdp_contribution = [
-    # 1990-1999
-    3.5, 3.8, 4.1, 4.4, 4.7, 5.0, 5.4, 5.9, 6.5, 7.2,
-    # 2000-2009
-    7.6, 7.4, 7.2, 7.1, 7.3, 7.5, 7.8, 8.1, 8.3, 8.5,
-    # 2010-2019
-    8.8, 9.1, 9.4, 9.8, 10.1, 10.5, 10.9, 11.4, 11.9, 12.4,
-    # 2020-2024
-    13.2, 14.1, 14.9, 15.5, 16.1  # Accelerating growth
-]
-
-# Industry-specific GDP contribution (%) - Financial Services
-finance_gdp_contribution = [
-    # 1990-1999
-    6.8, 7.0, 7.2, 7.4, 7.6, 7.8, 8.0, 8.3, 8.5, 8.7,
-    # 2000-2009
-    8.9, 8.7, 8.6, 8.8, 9.1, 9.4, 9.7, 9.5, 8.9, 8.4,
-    # 2010-2019
-    8.6, 8.7, 8.9, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7,
-    # 2020-2024
-    9.6, 9.8, 10.0, 10.1, 10.2  # Steady growth
-]
-
-# Create primary DataFrame
-data = pd.DataFrame({
-    'Year': years,
-    'GDP_Growth': gdp_growth,
-    'OECD_Europe_GDP_Growth': oecd_europe_gdp_growth,
-    'Internet_Adoption': internet_adoption,
-    'Mobile_Subscriptions': mobile_subscriptions,
-    'Robot_Density': robot_density,
-    'AI_Patents': ai_patents,
-    'AI_Investment': ai_investment,
-    'Tech_Research_Contribution': tech_research_contribution,
-    'Manufacturing_GDP_Share': manufacturing_gdp_contribution,
-    'IT_GDP_Share': it_gdp_contribution,
-    'Finance_GDP_Share': finance_gdp_contribution
-})
+# Extract years list for later use
+years = data['Year'].tolist()
 
 # Calculate growth rates and deltas (changes over time)
 for column in ['Internet_Adoption', 'Mobile_Subscriptions', 'Robot_Density', 
@@ -200,7 +61,7 @@ for column in ['Internet_Adoption', 'Mobile_Subscriptions', 'Robot_Density',
 # Calculate GDP difference between regions
 data['GDP_Growth_Differential'] = data['GDP_Growth'] - data['OECD_Europe_GDP_Growth']
 
-# Define tech wave periods as continuous variables instead of dummies
+# Define tech wave periods as continuous variables
 data['Tech_Wave'] = 0  # Initialize
 data.loc[(data['Year'] >= 1995) & (data['Year'] <= 2002), 'Tech_Wave'] = 1  # Tech 1.0
 data.loc[(data['Year'] >= 2003) & (data['Year'] <= 2012), 'Tech_Wave'] = 2  # Tech 2.0
@@ -242,11 +103,11 @@ data['Tech3_Index'] = scaler.fit_transform(
     pca.fit_transform(scaler.fit_transform(tech3_features))
 ).flatten()
 
-# Composite technology index
+# Composite technology index with weighted components
 data['Composite_Tech_Index'] = (
     0.2 * data['Tech1_Index'] + 
     0.3 * data['Tech2_Index'] + 
-    0.5 * data['Tech3_Index']  # Higher weight to reflect increasing importance
+    0.5 * data['Tech3_Index']  # Higher weight for newer tech
 )
 
 print("Technology indices created:")
@@ -266,6 +127,7 @@ plt.plot(data['Year'], data['Tech3_Index'], marker='^', linestyle='-',
 plt.plot(data['Year'], data['Composite_Tech_Index'], marker='d', linestyle='-', 
          linewidth=2.5, label='Composite Tech Index', color='red')
 
+# Add technology wave era backgrounds
 plt.axvspan(1995, 2002, alpha=0.2, color='green', label='Tech 1.0 Era')
 plt.axvspan(2003, 2012, alpha=0.2, color='orange', label='Tech 2.0 Era')
 plt.axvspan(2013, 2024, alpha=0.2, color='blue', label='Tech 3.0 Era')
@@ -350,7 +212,7 @@ for industry in industries:
     print("-" * 50)
     print(results_ind.summary().tables[1])
 
-# Industry restructuring visualization with improved annotations
+# Industry restructuring visualization
 plt.figure(figsize=(14, 8))
 plt.stackplot(data['Year'], 
              data['Manufacturing_GDP_Share'],
@@ -360,6 +222,7 @@ plt.stackplot(data['Year'],
              colors=['lightblue', 'lightgreen', 'coral'],
              alpha=0.7)
 
+# Add composite tech index line
 plt.plot(data['Year'], data['Composite_Tech_Index'] * 20, # Scale for visibility
          color='black', linestyle='--', linewidth=2.5, 
          label='Composite Tech Index (scaled)')
@@ -369,6 +232,7 @@ plt.axvspan(1995, 2002, alpha=0.1, color='green')
 plt.axvspan(2003, 2012, alpha=0.1, color='orange')
 plt.axvspan(2013, 2024, alpha=0.1, color='blue')
 
+# Add annotations for tech waves
 plt.annotate('Tech 1.0', xy=(1998, 22), fontsize=12, ha='center', fontweight='bold',
             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="green", alpha=0.8))
 plt.annotate('Tech 2.0', xy=(2007, 22), fontsize=12, ha='center', fontweight='bold',
@@ -410,52 +274,53 @@ print("="*60)
 data['Early_Tech3'] = ((data['Year'] >= 2013) & (data['Year'] <= 2019)).astype(int)
 data['Late_Tech3'] = ((data['Year'] >= 2020) & (data['Year'] <= 2024)).astype(int)
 
-# Add recession indicator
+# Add recession indicator using the recessions dataframe
 data['Recession'] = 0
-data.loc[(data['Year'] == 2001) | 
-         ((data['Year'] >= 2008) & (data['Year'] <= 2009)) | 
-         (data['Year'] == 2020), 'Recession'] = 1
+for _, recession in recessions.iterrows():
+    start_year = recession['Start_Year']
+    end_year = recession['End_Year']
+    data.loc[(data['Year'] >= start_year) & (data['Year'] <= end_year), 'Recession'] = 1
 
 # Create panel dataset for DiD analysis
 panel_data = []
 
 # Add North America data
-for i, year in enumerate(years):
+for _, row in data.iterrows():
     panel_data.append({
         'Region': 'North_America',
-        'Year': year,
-        'GDP_Growth': data.loc[i, 'GDP_Growth'],
-        'Tech1_Index': data.loc[i, 'Tech1_Index'],
-        'Tech2_Index': data.loc[i, 'Tech2_Index'],
-        'Tech3_Index': data.loc[i, 'Tech3_Index'],
-        'Composite_Tech_Index': data.loc[i, 'Composite_Tech_Index'],
-        'Internet_Adoption': data.loc[i, 'Internet_Adoption'],
-        'Mobile_Subscriptions': data.loc[i, 'Mobile_Subscriptions'],
-        'Robot_Density': data.loc[i, 'Robot_Density'],
-        'AI_Investment': data.loc[i, 'AI_Investment'],
-        'Recession': data.loc[i, 'Recession'],
-        'Early_Tech3': data.loc[i, 'Early_Tech3'],
-        'Late_Tech3': data.loc[i, 'Late_Tech3'],
+        'Year': row['Year'],
+        'GDP_Growth': row['GDP_Growth'],
+        'Tech1_Index': row['Tech1_Index'],
+        'Tech2_Index': row['Tech2_Index'],
+        'Tech3_Index': row['Tech3_Index'],
+        'Composite_Tech_Index': row['Composite_Tech_Index'],
+        'Internet_Adoption': row['Internet_Adoption'],
+        'Mobile_Subscriptions': row['Mobile_Subscriptions'],
+        'Robot_Density': row['Robot_Density'],
+        'AI_Investment': row['AI_Investment'],
+        'Recession': row['Recession'],
+        'Early_Tech3': row['Early_Tech3'],
+        'Late_Tech3': row['Late_Tech3'],
         'Treatment': 1  # Treatment group
     })
     
-# Add OECD Europe data
-for i, year in enumerate(years):
+# Add OECD Europe data with relative adoption rates
+for _, row in data.iterrows():
     panel_data.append({
         'Region': 'OECD_Europe',
-        'Year': year,
-        'GDP_Growth': data.loc[i, 'OECD_Europe_GDP_Growth'],
-        'Tech1_Index': data.loc[i, 'Tech1_Index'] * 0.8,  # Assume 80% of NA adoption
-        'Tech2_Index': data.loc[i, 'Tech2_Index'] * 0.9,  # Assume 90% of NA adoption
-        'Tech3_Index': data.loc[i, 'Tech3_Index'] * 0.7,  # Assume 70% of NA adoption
-        'Composite_Tech_Index': data.loc[i, 'Composite_Tech_Index'] * 0.8,
-        'Internet_Adoption': data.loc[i, 'Internet_Adoption'] * 0.8,
-        'Mobile_Subscriptions': data.loc[i, 'Mobile_Subscriptions'] * 0.9,
-        'Robot_Density': data.loc[i, 'Robot_Density'] * 0.7,
-        'AI_Investment': data.loc[i, 'AI_Investment'] * 0.6,
-        'Recession': data.loc[i, 'Recession'],
-        'Early_Tech3': data.loc[i, 'Early_Tech3'],
-        'Late_Tech3': data.loc[i, 'Late_Tech3'],
+        'Year': row['Year'],
+        'GDP_Growth': row['OECD_Europe_GDP_Growth'],
+        'Tech1_Index': row['Tech1_Index'] * 0.8,  # Assume 80% of NA adoption
+        'Tech2_Index': row['Tech2_Index'] * 0.9,  # Assume 90% of NA adoption
+        'Tech3_Index': row['Tech3_Index'] * 0.7,  # Assume 70% of NA adoption
+        'Composite_Tech_Index': row['Composite_Tech_Index'] * 0.8,
+        'Internet_Adoption': row['Internet_Adoption'] * 0.8,
+        'Mobile_Subscriptions': row['Mobile_Subscriptions'] * 0.9,
+        'Robot_Density': row['Robot_Density'] * 0.7,
+        'AI_Investment': row['AI_Investment'] * 0.6,
+        'Recession': row['Recession'],
+        'Early_Tech3': row['Early_Tech3'],
+        'Late_Tech3': row['Late_Tech3'],
         'Treatment': 0  # Control group
     })
 
@@ -546,6 +411,7 @@ for idx, year in enumerate(years):
 plt.plot(years, counterfactual, marker='', linestyle=':', color='red', 
          linewidth=2, label='Counterfactual (Europe + Tech Effect)')
 
+# Add tech wave period backgrounds
 plt.axvspan(1995, 2002, alpha=0.2, color='green', label='Tech 1.0')
 plt.axvspan(2003, 2012, alpha=0.2, color='orange', label='Tech 2.0')
 plt.axvspan(2013, 2024, alpha=0.2, color='blue', label='Tech 3.0')
@@ -575,11 +441,11 @@ print(f"\nForecasting with time series of length: {len(gdp_series)}")
 # Skip ADF test and assume GDP growth is stationary (which is typically true)
 print("\nGDP growth rates are typically stationary - proceeding with forecasting")
 
-# Simplify model selection - use simpler model for more robust forecasting
-arima_order = (1, 0, 1)  # Simpler ARIMA model (1,0,1) instead of (2,0,2)
+# Use simpler ARIMA model for robust forecasting
+arima_order = (1, 0, 1)  # p=1, d=0, q=1
 print(f"\nUsing simplified ARIMA{arima_order} model for more robust forecasting")
 
-# ARIMA model with proper date handling
+# Fit ARIMA model with proper date handling
 print("\nFitting ARIMA model...")
 try:
     arima_model = ARIMA(gdp_series, order=arima_order)
@@ -596,7 +462,7 @@ print("\nCreating alternative forecasting model...")
 X = sm.add_constant(np.arange(len(data)))
 reg_model = sm.OLS(data['GDP_Growth'], X).fit()
 
-# Forecast period
+# Define forecast period
 forecast_years = list(range(2025, 2036))
 forecast_periods = len(forecast_years)
 
@@ -615,7 +481,7 @@ else:
 # Create forecast dataframe
 arima_forecast_df = pd.DataFrame({'Year': forecast_years, 'GDP_Growth': arima_forecast_values})
 
-# Define scenarios without relying on SARIMAX
+# Define scenarios for tech impact on GDP growth
 scenarios = {
     'Conservative': {'tech_impact': 0.4, 'tech_growth': 0.03},  # +0.4pp annual growth
     'Moderate': {'tech_impact': 1.2, 'tech_growth': 0.05},      # +1.2pp annual growth
@@ -626,13 +492,13 @@ scenarios = {
 forecast_data = pd.DataFrame({'Year': forecast_years})
 forecast_data['Baseline'] = arima_forecast_df['GDP_Growth'].values
 
-# Directly calculate scenario forecasts without relying on complex time series models
+# Calculate baseline growth from recent data
 last_known_growth = data['GDP_Growth'].iloc[-1]
-baseline_growth = np.mean(data['GDP_Growth'].iloc[-5:])  # Average of last 5 years as baseline
+baseline_growth = np.mean(data['GDP_Growth'].iloc[-5:])  # Average of last 5 years
 
 print(f"\nBaseline future growth (average of last 5 years): {baseline_growth:.2f}%")
 
-# Calculate scenarios directly
+# Calculate scenarios directly using additive model
 for name, params in scenarios.items():
     # Simple additive model: baseline + technology impact
     forecast_data[name] = baseline_growth + params['tech_impact']
@@ -652,7 +518,7 @@ for name in ['Baseline'] + list(scenarios.keys()):
     # Store in dataframe
     forecast_data[f'{name}_Level'] = gdp_level
 
-# Correct calculations for comparing GDP levels
+# Calculate cumulative GDP impacts
 print("\nCumulative GDP Level Impact by 2035 (Indexed to 100 in 2024):")
 for name in scenarios.keys():
     final_level = forecast_data[f'{name}_Level'].iloc[-1]
@@ -665,28 +531,21 @@ for name in scenarios.keys():
 print("\nGDP Growth Forecasts by Scenario (2025-2035):")
 print(forecast_data[['Year', 'Baseline', 'Conservative', 'Moderate', 'Optimistic']])
 
-print("\nCumulative GDP Level Impact by 2035 (Indexed to 100 in 2024):")
-for name in scenarios.keys():
-    final_level = forecast_data[f'{name}_Level'].iloc[-1]
-    baseline_level = forecast_data['Baseline'].iloc[-1]
-    print(f"{name} Scenario: {final_level:.1f} (vs. Baseline: {baseline_level:.1f}), " + 
-          f"Gain: +{((final_level/baseline_level)-1)*100:.1f}%")
-
-# Visualize forecasts with improved confidence intervals and realistic projections
-plt.figure(figsize=(14, 8))
-
-# Calculate manual confidence intervals if not already in the forecast_data
-if 'Lower_CI' not in forecast_data.columns or 'Upper_CI' not in forecast_data.columns:
-    # Safe way to access the standard error
-    if arima_results is not None and hasattr(arima_results, 'bse') and len(arima_results.bse) > 0:
-        forecast_std_error = arima_results.bse.iloc[-1] if isinstance(arima_results.bse, pd.Series) else arima_results.bse[-1]
+# Calculate confidence intervals for visualization
+if arima_results is not None and hasattr(arima_results, 'bse') and len(arima_results.bse) > 0:
+    if isinstance(arima_results.bse, pd.Series):
+        forecast_std_error = arima_results.bse.iloc[-1]
     else:
-        forecast_std_error = 0.5  # Fallback value
-    
-    # Create confidence intervals manually
-    forecast_data['Lower_CI'] = forecast_data['Baseline'] - 1.96 * forecast_std_error
-    forecast_data['Upper_CI'] = forecast_data['Baseline'] + 1.96 * forecast_std_error
-    print("Created manual confidence intervals for forecast visualization")
+        forecast_std_error = arima_results.bse[-1]
+else:
+    forecast_std_error = 0.5  # Fallback value
+
+# Create confidence intervals manually
+forecast_data['Lower_CI'] = forecast_data['Baseline'] - 1.96 * forecast_std_error
+forecast_data['Upper_CI'] = forecast_data['Baseline'] + 1.96 * forecast_std_error
+
+# Visualize forecasts
+plt.figure(figsize=(14, 8))
 
 # Historical data with smoothed trend line
 plt.plot(data['Year'], data['GDP_Growth'], marker='o', linestyle='-', 
@@ -710,11 +569,9 @@ plt.fill_between(forecast_data['Year'],
                 forecast_data['Upper_CI'], 
                 color='gray', alpha=0.2, label='95% Confidence Interval')
 
-# Scenario forecasts with proper connection to historical data
+# Connect historical to forecast for each scenario
 last_historical_year = data['Year'].iloc[-1]
 last_historical_value = data['GDP_Growth'].iloc[-1]
-
-# Connect historical to forecast for each scenario
 connect_x = [last_historical_year, forecast_data['Year'].iloc[0]]
 
 for name, color in zip(['Conservative', 'Moderate', 'Optimistic'], ['green', 'orange', 'red']):
@@ -740,12 +597,13 @@ for name, color in zip(['Conservative', 'Moderate', 'Optimistic'], ['green', 'or
                 color=color, fontweight='bold', ha='center',
                 bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=color, alpha=0.8))
 
-# Highlighting
+# Add tech era highlighting
 plt.axvspan(2013, 2024, alpha=0.2, color='blue', label='Tech 3.0 (Current)')
 plt.axvspan(2025, 2035, alpha=0.2, color='purple', label='Tech 3.0 (Forecast)')
 
-# Add recession bands for context
-for year in [2001, 2008, 2020]:
+# Add recession markers
+for _, recession in recessions.iterrows():
+    year = recession['Start_Year']
     if year in data['Year'].values:
         plt.axvline(x=year, color='red', linestyle=':', alpha=0.3)
 
@@ -769,54 +627,6 @@ for name, color in zip(['Conservative', 'Moderate', 'Optimistic'], ['green', 'or
 
 plt.tight_layout()
 plt.savefig(os.path.join(results_dir, 'gdp_growth_forecast_improved.png'), dpi=300)
-
-# Forecast lines
-plt.plot(forecast_data['Year'], forecast_data['Baseline'], marker='', 
-         linestyle='--', color='gray', linewidth=2, 
-         label='Baseline Forecast (ARIMA)')
-         
-# Add confidence intervals to baseline forecast
-plt.fill_between(forecast_data['Year'], forecast_data['Lower_CI'], forecast_data['Upper_CI'], 
-                color='gray', alpha=0.2, label='95% Confidence Interval')
-
-# Scenario forecasts         
-plt.plot(forecast_data['Year'], forecast_data['Conservative'], marker='', 
-         linestyle='-', color='green', linewidth=2, 
-         label='Conservative Tech 3.0 Scenario')
-plt.plot(forecast_data['Year'], forecast_data['Moderate'], marker='', 
-         linestyle='-', color='orange', linewidth=2, 
-         label='Moderate Tech 3.0 Scenario')
-plt.plot(forecast_data['Year'], forecast_data['Optimistic'], marker='', 
-         linestyle='-', color='red', linewidth=2, 
-         label='Optimistic Tech 3.0 Scenario')
-
-# Highlighting
-plt.axvspan(2013, 2024, alpha=0.2, color='blue', label='Tech 3.0 (Current)')
-plt.axvspan(2025, 2035, alpha=0.2, color='purple', label='Tech 3.0 (Forecast)')
-
-# Add annotations for scenario impacts
-plt.annotate(f"Conservative: +{scenarios['Conservative']['tech_impact']}pp", 
-             xy=(2030, forecast_data['Conservative'].iloc[5]), 
-             xytext=(2030, forecast_data['Conservative'].iloc[5] + 0.3),
-             color='green', fontweight='bold')
-plt.annotate(f"Moderate: +{scenarios['Moderate']['tech_impact']}pp", 
-             xy=(2030, forecast_data['Moderate'].iloc[5]), 
-             xytext=(2030, forecast_data['Moderate'].iloc[5] + 0.3),
-             color='orange', fontweight='bold')
-plt.annotate(f"Optimistic: +{scenarios['Optimistic']['tech_impact']}pp", 
-             xy=(2030, forecast_data['Optimistic'].iloc[5]), 
-             xytext=(2030, forecast_data['Optimistic'].iloc[5] + 0.3),
-             color='red', fontweight='bold')
-
-plt.grid(True, linestyle='--', alpha=0.7)
-plt.title('GDP Growth Forecast Scenarios: Tech 3.0 Impact (2025-2035)', fontsize=16)
-plt.ylabel('Annual GDP Growth (%)', fontsize=14)
-plt.xlabel('Year', fontsize=14)
-plt.legend(loc='best', fontsize=12)
-plt.ylim(-4, 6)
-
-plt.tight_layout()
-plt.savefig('gdp_growth_forecast_improved.png', dpi=300)
 
 #########################################
 # 7. AI IMPACT ANALYSIS
@@ -858,7 +668,7 @@ print("\nCorrelations with 3-year lagged AI metrics:")
 for metric, corr in lagged_ai_correlations.items():
     print(f"{metric}: {corr:.4f}")
 
-# Run regression specifically for AI impact - contemporaneous effects
+# Run regression for AI impact - contemporaneous effects
 X_ai = sm.add_constant(data[['AI_Patents', 'AI_Investment', 'Tech_Research_Contribution']])
 ai_model = sm.OLS(data['GDP_Growth'], X_ai)
 ai_results = ai_model.fit(cov_type='HC1')
@@ -892,10 +702,10 @@ for industry in ['Manufacturing_GDP_Share', 'IT_GDP_Share', 'Finance_GDP_Share']
     print(f"\n{industry_label} Sector:")
     print(ai_industry_results.summary().tables[1])
 
-# Visualize AI metrics and GDP growth with trend lines
+# Visualize AI metrics and GDP growth
 plt.figure(figsize=(14, 8))
 
-# Plot GDP growth
+# Primary axis for GDP growth
 ax1 = plt.gca()
 ax1.plot(data['Year'], data['GDP_Growth'], marker='o', linestyle='-', 
         color='navy', linewidth=2, label='GDP Growth (%)')
@@ -911,7 +721,7 @@ ax1.set_xlabel('Year', fontsize=14)
 ax1.set_ylabel('GDP Growth (%)', fontsize=14, color='navy')
 ax1.tick_params(axis='y', labelcolor='navy')
 
-# Create second y-axis for AI metrics
+# Secondary axis for AI metrics
 ax2 = ax1.twinx()
 ax2.plot(data['Year'], data['AI_Patents'], marker='s', linestyle='--', 
         color='red', label='AI Patents (thousands)')
@@ -968,10 +778,10 @@ resilience_weights = {
     'Tech_Research_Contribution': 0.10
 }
 
-# Calculate the technology resilience index
+# Calculate the technology resilience index as weighted combination of normalized components
 resilience_components = {}
 for component, weight in resilience_weights.items():
-    # Normalize each component
+    # Normalize each component to 0-1 scale
     normalized = (data[component] - data[component].min()) / \
                  (data[component].max() - data[component].min())
     resilience_components[component] = normalized * weight
@@ -979,12 +789,12 @@ for component, weight in resilience_weights.items():
 # Calculate the weighted sum
 data['Tech_Resilience_Index'] = sum(resilience_components.values())
 
-# Calculate resilience by industry
+# Calculate resilience by industry (correlation)
 industry_resilience = {}
 for industry in ['Manufacturing_GDP_Share', 'IT_GDP_Share', 'Finance_GDP_Share']:
-    # Correlation between industry share and resilience
     industry_resilience[industry] = data['Tech_Resilience_Index'].corr(data[industry])
 
+# Calculate average resilience by technology wave period
 print("\nTechnology Resilience Index by Year:")
 resilience_by_period = {
     'Pre-Tech (1990-1994)': data[data['Year'] < 1995]['Tech_Resilience_Index'].mean(),
@@ -1006,12 +816,11 @@ plt.figure(figsize=(14, 7))
 plt.plot(data['Year'], data['Tech_Resilience_Index'], marker='o', 
          linestyle='-', linewidth=2.5, color='purple')
 
-# Add recession bars (e.g., 2001 dot-com crash, 2008 financial crisis, 2020 COVID)
-recessions = [(2001, 2001), (2008, 2009), (2020, 2020)]
-for start, end in recessions:
-    plt.axvspan(start, end, alpha=0.3, color='red')
+# Add recession periods as shaded areas
+for _, recession in recessions.iterrows():
+    plt.axvspan(recession['Start_Year'], recession['End_Year'], alpha=0.3, color='red')
     
-# Label recessions
+# Label major recessions
 plt.text(2001, 0.2, 'Dot-Com\nCrash', ha='center', fontsize=10)
 plt.text(2008.5, 0.2, 'Financial\nCrisis', ha='center', fontsize=10)
 plt.text(2020, 0.2, 'COVID-19', ha='center', fontsize=10)
@@ -1127,24 +936,44 @@ emerging productivity gains that may still be in early stages of realization.
 # Generate final summary chart
 plt.figure(figsize=(16, 10))
 
-# Timeline
+# Timeline with GDP growth and tech resilience
 ax1 = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
 ax1.plot(data['Year'], data['GDP_Growth'], marker='o', linestyle='-', 
           color='navy', linewidth=2, label='GDP Growth (%)')
 ax1.plot(data['Year'], data['Tech_Resilience_Index'] * 5, marker='', 
           linestyle='-', color='purple', linewidth=2, label='Tech Resilience Index (x5)')
 
-# Mark recessions
-for start, end in recessions:
-    ax1.axvspan(start, end, alpha=0.3, color='red')
+# Mark recession periods
+for _, recession in recessions.iterrows():
+    start_year = recession['Start_Year']
+    end_year = recession['End_Year']
+    ax1.axvspan(start_year, end_year, alpha=0.3, color='red')
 
-# Mark tech waves
-ax1.axvspan(1995, 2002, alpha=0.2, color='green', label='Tech 1.0: Internet')
-ax1.axvspan(2003, 2012, alpha=0.2, color='orange', label='Tech 2.0: Mobile/Social')
-ax1.axvspan(2013, 2024, alpha=0.2, color='blue', label='Tech 3.0: AI/Automation')
+# Mark tech wave periods from the CSV file
+for _, period in wave_periods.iterrows():
+    if period['Period'] != 'Tech_3.0_Future':  # Skip future period for historical chart
+        start_year = period['Start_Year']
+        end_year = period['End_Year']
+        label = period['Period'].replace('_', ' ')
+        
+        if 'Tech_1.0' in period['Period']:
+            color = 'green'
+            label = 'Tech 1.0: Internet'
+        elif 'Tech_2.0' in period['Period']:
+            color = 'orange'
+            label = 'Tech 2.0: Mobile/Social'
+        elif 'Tech_3.0' in period['Period']:
+            color = 'blue'
+            label = 'Tech 3.0: AI/Automation'
+        else:
+            color = 'gray'
+            
+        ax1.axvspan(start_year, end_year, alpha=0.2, color=color, label=label)
+
+# Add future projection period
 ax1.axvspan(2025, 2035, alpha=0.2, color='purple', label='Tech 3.0: Future Projection')
 
-# Add text annotations for key events
+# Add text annotations for key tech milestones
 ax1.annotate('World Wide Web', xy=(1993, 4), xytext=(1993, 5),
              arrowprops=dict(facecolor='black', shrink=0.05), fontsize=10)
 ax1.annotate('Amazon Founded', xy=(1994, 4.5), xytext=(1994, 5.5),
@@ -1188,7 +1017,7 @@ ax2.legend(loc='upper right', fontsize=12)
 ax2.grid(True, linestyle='--', alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('economic_impact_summary.png', dpi=300)
+plt.savefig(os.path.join(results_dir, 'economic_impact_summary.png'), dpi=300)
 
 print("\nAnalysis complete. All visualizations saved.")
 print(f"Number of visualizations generated: 8")
